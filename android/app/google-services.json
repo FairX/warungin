@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "506081431460",
+    "project_id": "warungin-81dbb",
+    "storage_bucket": "warungin-81dbb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:506081431460:android:d944f592581237e23c3b31",
+        "android_client_info": {
+          "package_name": "com.example.warungin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCHCjQdMoLDEY3JSqUdxW45LbilfJfOFg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
