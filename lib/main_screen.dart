@@ -1,10 +1,15 @@
+// lib/main_screen.dart
+
 import 'package:dashboard_trial/cashier/cashier.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dashboard.dart';
 import 'package:dashboard_trial/product/product.dart';
+import 'features/laporan/screens/laporan_page.dart';
 
 class MainScreen extends StatefulWidget {
+  const MainScreen({super.key}); 
+
   @override
   _MainScreenState createState() => _MainScreenState();
 }
@@ -24,7 +29,7 @@ class _MainScreenState extends State<MainScreen> {
       _selectedIndex = index;
       _pageController.animateToPage(
         index,
-        duration: Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 300), // Add const
         curve: Curves.ease,
       );
     });
@@ -41,13 +46,13 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: PageView(
         controller: _pageController,
-        physics: NeverScrollableScrollPhysics(),
+        physics: const NeverScrollableScrollPhysics(), // Add const
         children: [
           DashboardScreen(),
           ProdukScreen(),
           CashierScreen(),
-          Center(child: Text('laporan')),
-          Center(child: Text('Menu')),
+          LaporanPage(),
+          const Center(child: Text('Menu')), // Add const if static
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
