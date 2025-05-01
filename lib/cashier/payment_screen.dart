@@ -65,6 +65,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
         int jual = (item['harga_jual'] ?? 0).toInt();
         int jumlah = (item['jumlah'] ?? 0).toInt();
 
+        print(
+          "Item: ${item['nama']}, Harga Beli: $beli, Harga Jual: $jual, Jumlah: $jumlah",
+        );
+
         int profitPerItem = (jual - beli) * jumlah;
         totalProfit += profitPerItem;
       }
@@ -83,7 +87,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
       // 6. Navigasi ke Success Screen
       Navigator.pop(context);
-      Navigator.pushReplacement(
+
+      print("Data keranjang yg diteruskan: ${widget.keranjang}");
+
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder:

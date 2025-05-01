@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class SuccessScreen extends StatelessWidget {
+class SuccessScreen extends StatefulWidget {
   final List<Map<String, dynamic>> keranjang;
   final int totalHarga;
   final int uangDiterima;
@@ -13,8 +13,15 @@ class SuccessScreen extends StatelessWidget {
   });
 
   @override
+  _SuccessScreenState createState() => _SuccessScreenState();
+}
+
+class _SuccessScreenState extends State<SuccessScreen> {
+  @override
   Widget build(BuildContext context) {
-    int kembalian = uangDiterima - totalHarga;
+    int kembalian = widget.uangDiterima - widget.totalHarga;
+
+    print("Keranjang di SuccessScreen: ${widget.keranjang}");
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -35,37 +42,42 @@ class SuccessScreen extends StatelessWidget {
             ),
             SizedBox(height: 24),
             Expanded(
-              child: ListView(
-                children:
-                    keranjang.map((item) {
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          item['nama'],
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF364153),
-                          ),
-                        ),
-                        subtitle: Text(
-                          '${item['jumlah']} x Rp${item['harga_jual']}',
-                          style: GoogleFonts.poppins(fontSize: 12),
-                        ),
-                        trailing: Text(
-                          'Rp${item['jumlah'] * item['harga_jual']}',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF364153),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-              ),
+              child:
+                  widget.keranjang.isEmpty
+                      ? Center(child: Text("Keranjang kosong"))
+                      : ListView(
+                        children:
+                            widget.keranjang.map((item) {
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(
+                                  item['nama'],
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13,
+                                    color: Color(0xFF364153),
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '${item['jumlah']} x Rp${item['harga_jual']}',
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                                trailing: Text(
+                                  'Rp${item['jumlah'] * item['harga_jual']}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF364153),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                      ),
             ),
             Divider(),
             SizedBox(height: 8),
-            _buildRow('Subtotal', 'Rp$totalHarga'),
-            _buildRow('Uang Diterima', 'Rp$uangDiterima'),
+            _buildRow('Subtotal', 'Rp${widget.totalHarga}'),
+            _buildRow('Uang Diterima', 'Rp${widget.uangDiterima}'),
             _buildRow('Kembalian', 'Rp$kembalian'),
             SizedBox(height: 20),
             ElevatedButton(

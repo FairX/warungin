@@ -35,10 +35,16 @@ class _CashierScreenState extends State<CashierScreen> {
     final data =
         snapshot.docs.map((doc) {
           final item = doc.data();
+
+          print(
+            "Produk ID: ${doc.id}, Nama: ${item['nama']}, Harga Beli: ${item['harga_beli']}",
+          );
+
           return {
             'id': doc.id,
             'nama': item['nama'],
             'harga_jual': item['harga_jual'],
+            'harga_beli': item['harga_beli'],
             'stok': item['stok'],
             'stokTampil': item['stok'],
           };
@@ -70,9 +76,12 @@ class _CashierScreenState extends State<CashierScreen> {
             'id': produk['id'],
             'nama': produk['nama'],
             'harga_jual': produk['harga_jual'],
-            'harga_beli': produk["harga_beli"],
+            'harga_beli': produk['harga_beli'],
             'jumlah': 1,
           });
+          print(
+            "Added to keranjang: ${produk['nama']}, Harga Jual: ${produk['harga_jual']}, Harga Beli: ${produk['harga_beli']}",
+          );
         }
 
         print("Stok $id berkurang di tampilan");

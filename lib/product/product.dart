@@ -364,67 +364,70 @@ class _ProdukScreenState extends State<ProdukScreen> {
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 20,
-                                  vertical: 8,
+                                  vertical: 6,
                                 ),
-                                child: Row(
-                                  children: [
-                                    // Product Image Placeholder
-                                    Container(
-                                      width: 46,
-                                      height: 46,
-                                      decoration: BoxDecoration(
+                                child: Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey[200]!,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
                                         color: Color(0xFFD9D9D9),
-                                        borderRadius: BorderRadius.circular(5),
                                       ),
-                                    ),
-                                    SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            produk['nama'],
-                                            style: GoogleFonts.poppins(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 12,
-                                              color: Color(0xFF364153),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              produk['nama'],
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
+                                              ),
                                             ),
-                                          ),
-                                          Text(
-                                            "Rp${produk['harga_jual'].toString()}",
-                                            style: GoogleFonts.poppins(
-                                              fontWeight: FontWeight.w400,
-                                              fontSize: 12,
-                                              color: Color(0xFF364153),
+                                            Text(
+                                              "Rp${produk['harga_jual']}",
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 12,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      produk['stok'].toString(),
-                                      style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 16,
-                                        color: Colors.lightBlue[600],
+                                      Text(
+                                        produk['stok'].toString(),
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                          color: Colors.lightBlue[600],
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.more_vert,
-                                        color: Color(0xFF364153),
+                                      SizedBox(width: 8),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.more_vert,
+                                          color: Color(0xFF364153),
+                                        ),
+                                        onPressed: () {
+                                          _showOptionsBottomSheet(
+                                            context,
+                                            index,
+                                            produk,
+                                          );
+                                        },
                                       ),
-                                      onPressed: () {
-                                        _showOptionsBottomSheet(
-                                          context,
-                                          index,
-                                          produk,
-                                        );
-                                      },
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               );
                             },

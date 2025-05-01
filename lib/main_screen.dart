@@ -5,10 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dashboard.dart';
 import 'package:dashboard_trial/product/product.dart';
-// --- Ensure correct imports ---
 import 'features/laporan/screens/laporan_page.dart';
 import 'features/laporan/screens/add_transaction_page.dart';
-import 'features/laporan/models/transaction.dart'; // Keep this if Transaction type is needed here
+import 'features/laporan/models/transaction.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -21,8 +20,8 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   late PageController _pageController;
 
-  // --- Key definition (Keep it typed with the public Widget class) ---
-  final GlobalKey<LaporanPageState> _laporanPageKey = GlobalKey<LaporanPageState>();
+  final GlobalKey<LaporanPageState> _laporanPageKey =
+      GlobalKey<LaporanPageState>();
 
   @override
   void initState() {
@@ -60,9 +59,9 @@ class _MainScreenState extends State<MainScreen> {
         );
 
         if (newTransaction != null) {
-          // This call should now work because the key is assigned below
-          // It accesses LaporanPageState's public method
-          _laporanPageKey.currentState?.handleAddTransactionResult(newTransaction);
+          _laporanPageKey.currentState?.handleAddTransactionResult(
+            newTransaction,
+          );
         }
       },
     );
@@ -78,7 +77,6 @@ class _MainScreenState extends State<MainScreen> {
           DashboardScreen(),
           ProdukScreen(),
           CashierScreen(),
-          // --- ASSIGN THE KEY HERE ---
           LaporanPage(key: _laporanPageKey),
           const Center(child: Text('Menu')),
         ],
@@ -109,11 +107,13 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.menu), label: "Menu"),
         ],
       ),
-       // Conditionally add the FloatingActionButton
-       floatingActionButton: _selectedIndex == 3 // 3 is the index for Laporan
-           ? _buildLaporanFab(context)
-           : null, // Show nothing if not on Laporan tab
-       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      // Conditionally add the FloatingActionButton
+      floatingActionButton:
+          _selectedIndex ==
+                  3 // 3 is the index for Laporan
+              ? _buildLaporanFab(context)
+              : null, // Show nothing if not on Laporan tab
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,24 +11,189 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _showOmsetGraph = true;
 
-  final List<double> omsetData = [
-    112500,
-    175000,
-    350000,
-    700000,
-    200000,
-    400000,
-    60000,
-  ];
-  final List<double> profitData = [
-    50000,
-    75000,
-    150000,
-    300000,
-    100000,
-    200000,
-    30000,
-  ];
+  List<double> omsetData = [];
+  List<double> profitData = [];
+  List<Map<String, dynamic>> hampirHabisProduk = [];
+  bool isLoading = true;
+
+  double omsetHariIni = 0;
+  double profitHariIni = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _getOmsetAndProfitData();
+    _getProdukHampirHabis();
+  }
+
+  // Ambil data omset dan profit dari transaksi
+  Future<void> _getOmsetAndProfitData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      QuerySnapshot transaksiSnapshot =
+          await FirebaseFirestore.instance.collection('transaksi').get();
+
+      List<double> omsetMingguan = List.filled(7, 0.0);
+      List<double> profitMingguan = List.filled(7, 0.0);
+
+      double totalOmsetHariIni = 0;
+      double totalProfitHariIni = 0;
+      DateTime today = DateTime.now();
+
+      for (var doc in transaksiSnapshot.docs) {
+        var transaksi = doc.data() as Map<String, dynamic>;
+        double nominal = (transaksi['nominal'] ?? 0).toDouble();
+        double profit = (transaksi['profit'] ?? 0).toDouble();
+        Timestamp ts = transaksi['tanggal'];
+        DateTime tgl = ts.toDate();
+
+        // Hari ini
+        if (tgl.year == today.year &&
+            tgl.month == today.month &&
+            tgl.day == today.day) {
+          totalOmsetHariIni += nominal;
+          totalProfitHariIni += profit;
+        }
+
+        // Hari dalam minggu (1=Senin, ..., 7=Minggu)
+        int weekdayIndex = tgl.weekday - 1; // jadi 0=Senin ... 6=Minggu
+        if (weekdayIndex >= 0 && weekdayIndex < 7) {
+          omsetMingguan[weekdayIndex] += nominal;
+          profitMingguan[weekdayIndex] += profit;
+        }
+      }
+
+      setState(() {
+        omsetData = omsetMingguan;
+        profitData = profitMingguan;
+        omsetHariIni = totalOmsetHariIni;
+        profitHariIni = totalProfitHariIni;
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching omset/profit data: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _getProdukHampirHabis() async {
+    try {
+      QuerySnapshot produkSnapshot =
+          await FirebaseFirestore.instance.collection('produk').get();
+
+      List<Map<String, dynamic>> hampirHabis = [];
+
+      for (var doc in produkSnapshot.docs) {
+        var produk = doc.data() as Map<String, dynamic>;
+        int stok = produk['stok'] ?? 0;
+        int minimumStok = produk['minimum_stok'] ?? 0;
+
+        if (stok <= minimumStok) {
+          hampirHabis.add({'nama': produk['nama'], 'stok': stok.toString()});
+        }
+      }
+
+      setState(() {
+        hampirHabisProduk = hampirHabis;
+      });
+    } catch (e) {
+      print("Error fetching hampir habis produk: $e");
+    }
+  }
+
+  // ambil data untuk grafik mingguan
+  LineChartData _buildChartData(List<double> data) {
+    if (data.isEmpty) {
+      return LineChartData(gridData: FlGridData(show: true), lineBarsData: []);
+    }
+
+    List<FlSpot> spots = [];
+    for (int i = 0; i < data.length; i++) {
+      spots.add(FlSpot(i.toDouble(), data[i]));
+    }
+
+    return LineChartData(
+      gridData: FlGridData(
+        show: true,
+        drawVerticalLine: false,
+        horizontalInterval: 100000,
+        getDrawingHorizontalLine:
+            (value) => FlLine(color: Color(0xFFCCCCCC), strokeWidth: 1),
+      ),
+      titlesData: FlTitlesData(
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            getTitlesWidget: (value, _) {
+              const labels = {
+                0: '0k',
+                100000: '100k',
+                200000: '200k',
+                300000: '300k',
+                400000: '400k',
+                500000: '500k',
+              };
+              return Text(
+                labels[value.toInt()] ?? '',
+                style: TextStyle(fontSize: 8, color: Color(0xFF6A7282)),
+              );
+            },
+          ),
+        ),
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            getTitlesWidget: (value, _) {
+              const labels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+              if (value.toInt() < labels.length) {
+                return Text(
+                  labels[value.toInt()],
+                  style: TextStyle(fontSize: 10, color: Color(0xFF6A7282)),
+                );
+              }
+              return Text('');
+            },
+          ),
+        ),
+        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      ),
+      borderData: FlBorderData(show: false),
+      minX: 0,
+      maxX: 6,
+      minY: 0,
+      maxY:
+          data.reduce((value, element) => value > element ? value : element) *
+          1.2,
+      lineBarsData: [
+        LineChartBarData(
+          spots: spots,
+          isCurved: false,
+          color: Color(0xFF0E9CFF),
+          barWidth: 2,
+          belowBarData: BarAreaData(
+            show: true,
+            color: Color(0xFF0E9CFF).withOpacity(0.2),
+          ),
+          dotData: FlDotData(
+            show: true,
+            getDotPainter:
+                (spot, _, __, ___) => FlDotCirclePainter(
+                  radius: 3,
+                  color: Colors.white,
+                  strokeWidth: 2,
+                  strokeColor: Color(0xFF0E9CFF),
+                ),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,8 +234,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildToggleBox("Omset", "Rp250.000", true),
-              _buildToggleBox("Profit", "Rp150.000", false),
+              _buildToggleBox("Omset", "Rp$omsetHariIni", true),
+              _buildToggleBox("Profit", "Rp$profitHariIni", false),
             ],
           ),
           SizedBox(height: 20),
@@ -133,13 +299,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Text("Hampir Habis", style: _sectionTitleStyle()),
           SizedBox(height: 16),
-          ...[
-            _buildStockItem("Coca Cola", "sisa 9"),
-            _buildStockItem("Sprite", "sisa 8"),
-            _buildStockItem("Fanta", "sisa 7"),
-            _buildStockItem("Aqua", "sisa 8"),
-            _buildStockItem("Le Minerale", "sisa 7"),
-          ],
+          ...hampirHabisProduk.isEmpty
+              ? [Text("Tidak ada produk yang hampir habis")]
+              : hampirHabisProduk.map((produk) {
+                return _buildStockItem(produk['nama'], produk['stok']);
+              }).toList(),
         ],
       ),
     );
@@ -177,83 +341,4 @@ class _DashboardScreenState extends State<DashboardScreen> {
       BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 7),
     ],
   );
-
-  LineChartData _buildChartData(List<double> data) {
-    return LineChartData(
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: false,
-        horizontalInterval: 175000,
-        getDrawingHorizontalLine:
-            (value) => FlLine(color: Color(0xFFCCCCCC), strokeWidth: 1),
-      ),
-      titlesData: FlTitlesData(
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            getTitlesWidget: (value, _) {
-              const labels = {
-                0: '1',
-                175000: '175k',
-                350000: '350k',
-                525000: '525k',
-                700000: '700k',
-              };
-              return Text(
-                labels[value.toInt()] ?? '',
-                style: TextStyle(fontSize: 8, color: Color(0xFF6A7282)),
-              );
-            },
-          ),
-        ),
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            getTitlesWidget: (value, _) {
-              const labels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-              if (value.toInt() >= 0 && value.toInt() < labels.length) {
-                return Text(
-                  labels[value.toInt()],
-                  style: TextStyle(fontSize: 8, color: Color(0xFF6A7282)),
-                );
-              }
-              return Text('');
-            },
-          ),
-        ),
-        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-      ),
-      borderData: FlBorderData(show: false),
-      minX: 0,
-      maxX: 6,
-      minY: 0,
-      maxY: 700000,
-      lineBarsData: [
-        LineChartBarData(
-          spots: List.generate(
-            data.length,
-            (index) => FlSpot(index.toDouble(), data[index]),
-          ),
-          isCurved: false,
-          color: Color(0xFF0E9CFF),
-          barWidth: 2,
-          belowBarData: BarAreaData(
-            show: true,
-            color: Color(0xFF0E9CFF).withOpacity(0.2),
-          ),
-          dotData: FlDotData(
-            show: true,
-            getDotPainter:
-                (spot, _, __, ___) => FlDotCirclePainter(
-                  radius: 3,
-                  color: Colors.white,
-                  strokeWidth: 2,
-                  strokeColor: Color(0xFF0E9CFF),
-                ),
-          ),
-        ),
-      ],
-    );
-  }
 }
