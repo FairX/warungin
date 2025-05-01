@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 class CartScreen extends StatefulWidget {
   final List<Map<String, dynamic>> keranjang;
 
-  CartScreen({required this.keranjang});
+  const CartScreen({super.key, required this.keranjang});
 
   @override
   _CartScreenState createState() => _CartScreenState();
@@ -16,7 +16,7 @@ class _CartScreenState extends State<CartScreen> {
   int _hitungTotalItem() {
     return widget.keranjang.fold<int>(
       0,
-      (sum, item) => sum + (item['jumlah'] as int),
+      (sum, item) => sum + (item['jumlah'] as int? ?? 0),
     );
   }
 
@@ -24,7 +24,7 @@ class _CartScreenState extends State<CartScreen> {
     return widget.keranjang.fold<int>(
       0,
       (sum, item) =>
-          sum + ((item['harga_jual'] as int) * (item['jumlah'] as int)),
+          sum + ((item['harga_jual'] as int? ?? 0) * (item['jumlah'] as int? ?? 0)),
     );
   }
 
@@ -36,19 +36,26 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _bayar() {
+    // --- Create a COPY of the list before passing ---
+    final List<Map<String, dynamic>> keranjangCopy = List.from(widget.keranjang);
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (context) => PaymentScreen(
-              keranjang: widget.keranjang,
-              totalHarga: _hitungTotalHarga(),
-            ),
+        builder: (context) => PaymentScreen(
+          // --- Pass the COPY ---
+          keranjang: keranjangCopy,
+          totalHarga: _hitungTotalHarga(),
+        ),
       ),
     ).then((_) {
-      setState(() {
-        widget.keranjang.clear();
-      });
+      // This runs AFTER PaymentScreen/SuccessScreen eventually pop back here.
+      // Clear the keranjang in *this* screen's state.
+      if (mounted) {
+        setState(() {
+          widget.keranjang.clear(); // Clear this screen's list
+        });
+      }
     });
   }
 
@@ -107,13 +114,16 @@ class _CartScreenState extends State<CartScreen> {
                 children: [
                   Expanded(
                     child: ListView.builder(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         vertical: 16,
                         horizontal: 20,
                       ),
                       itemCount: widget.keranjang.length,
                       itemBuilder: (context, index) {
                         final item = widget.keranjang[index];
+                        final int hargaJual = item['harga_jual'] as int? ?? 0;
+                        final int jumlah = item['jumlah'] as int? ?? 0;
+                        final int totalItem = hargaJual * jumlah;
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Row(
@@ -123,7 +133,7 @@ class _CartScreenState extends State<CartScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      item['nama'],
+                                      item['nama'] ?? 'Nama Tidak Ditemukan',
                                       style: GoogleFonts.poppins(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 12,
@@ -131,7 +141,7 @@ class _CartScreenState extends State<CartScreen> {
                                       ),
                                     ),
                                     Text(
-                                      "Rp${item['harga_jual']} x ${item['jumlah']}",
+                                      "Rp$hargaJual x $jumlah",
                                       style: GoogleFonts.poppins(
                                         fontWeight: FontWeight.w400,
                                         fontSize: 12,
@@ -142,7 +152,7 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                               ),
                               Text(
-                                "Rp${(item['harga_jual'] * item['jumlah'])}",
+                                "Rp$totalItem",
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 12,
@@ -183,7 +193,7 @@ class _CartScreenState extends State<CartScreen> {
                             ),
                           ],
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Row(
                           children: [
                             Expanded(
@@ -206,7 +216,7 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                               ),
                             ),
-                            SizedBox(width: 16),
+                            const SizedBox(width: 16),
                             Expanded(
                               child: ElevatedButton(
                                 onPressed: _bayar,
