@@ -10,6 +10,9 @@ class CashierScreen extends StatefulWidget {
 
 class _CashierScreenState extends State<CashierScreen> {
   List<Map<String, dynamic>> keranjang = [];
+  List<Map<String, dynamic>> daftarProduk = [];
+  bool isLoading = true;
+
   TextEditingController _searchController = TextEditingController();
   String searchQuery = '';
 
@@ -19,30 +22,62 @@ class _CashierScreenState extends State<CashierScreen> {
     super.dispose();
   }
 
-  void _tambahKeKeranjang(Map<String, dynamic> produk) async {
-    setState(() {
-      var existingItem = keranjang.firstWhere(
-        (item) => item['nama'] == produk['nama'],
-        orElse: () => {},
-      );
+  @override
+  void initState() {
+    super.initState();
+    _loadProduk();
+  }
 
-      if (existingItem.isNotEmpty) {
-        existingItem['jumlah'] += 1;
-      } else {
-        keranjang.add({
-          'kode': produk['kode'],
-          'nama': produk['nama'],
-          'harga_jual': produk['harga_jual'],
-          'jumlah': 1,
-        });
+  void _loadProduk() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('produk').get();
+
+    final data =
+        snapshot.docs.map((doc) {
+          final item = doc.data();
+          return {
+            'id': doc.id,
+            'nama': item['nama'],
+            'harga_jual': item['harga_jual'],
+            'stok': item['stok'],
+            'stokTampil': item['stok'],
+          };
+        }).toList();
+
+    setState(() {
+      daftarProduk = data;
+      isLoading = false;
+    });
+  }
+
+  void _addtoKeranjang(Map<String, dynamic> produk) async {
+    setState(() {
+      final id = produk['id'];
+
+      final index = daftarProduk.indexWhere((item) => item['id'] == id);
+      if (index != -1 && daftarProduk[index]['stokTampil'] > 0) {
+        daftarProduk[index]['stokTampil'] -= 1;
+
+        final existing = keranjang.firstWhere(
+          (item) => item['id'] == id,
+          orElse: () => {},
+        );
+
+        if (existing.isNotEmpty) {
+          existing['jumlah'] += 1;
+        } else {
+          keranjang.add({
+            'id': produk['id'],
+            'nama': produk['nama'],
+            'harga_jual': produk['harga_jual'],
+            'harga_beli': produk["harga_beli"],
+            'jumlah': 1,
+          });
+        }
+
+        print("Stok $id berkurang di tampilan");
       }
     });
-
-    // Update stok di Firestore
-    await FirebaseFirestore.instance
-        .collection('produk')
-        .doc(produk['id'])
-        .update({'stok': produk['stok'] - 1});
   }
 
   @override
@@ -121,125 +156,86 @@ class _CashierScreenState extends State<CashierScreen> {
               ),
               SizedBox(height: 20),
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream:
-                      FirebaseFirestore.instance
-                          .collection('produk')
-                          .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator());
-                    }
+                child:
+                    isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : daftarProduk.isEmpty
+                        ? Center(child: Text("Belum Ada Produk"))
+                        : ListView.builder(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          itemCount: daftarProduk.length,
+                          itemBuilder: (context, index) {
+                            final produk = daftarProduk[index];
+                            if (!produk['nama'].toLowerCase().contains(
+                              searchQuery,
+                            ))
+                              return SizedBox();
 
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return Center(
-                        child: Text(
-                          "Belum Ada Produk",
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                            color: Color(0xFF364153),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final produkList =
-                        snapshot.data!.docs
-                            .map((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              return {
-                                'id': doc.id,
-                                'nama': data['nama'] ?? '',
-                                'harga_jual': data['harga_jual'] ?? 0,
-                                'stok': data['stok'] ?? 0,
-                              };
-                            })
-                            .where((produk) {
-                              return produk['nama'].toLowerCase().contains(
-                                searchQuery,
-                              );
-                            })
-                            .toList();
-
-                    return ListView.builder(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      itemCount: produkList.length,
-                      itemBuilder: (context, index) {
-                        final produk = produkList[index];
-                        return GestureDetector(
-                          onTap: () {
-                            if (produk['stok'] > 0) {
-                              _tambahKeKeranjang(produk);
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 6, // diperkecil padding antar item
-                            ),
-                            child: Container(
-                              padding: EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.grey[200]!,
-                                  width: 1,
+                            return GestureDetector(
+                              onTap: () {
+                                print("Added to cart: id = ${produk['id']}");
+                                if (produk['stokTampil'] > 0) {
+                                  _addtoKeranjang(produk);
+                                }
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 6,
+                                ),
+                                child: Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey[200]!,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        color: Color(0xFFD9D9D9),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              produk['nama'],
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            Text(
+                                              "Rp${produk['harga_jual']}",
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        produk['stokTampil'].toString(),
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                          color: Colors.lightBlue[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: Color(0xFFD9D9D9),
-                                      borderRadius: BorderRadius.circular(5),
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          produk['nama'],
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                            color: Color(0xFF364153),
-                                          ),
-                                        ),
-                                        Text(
-                                          "Rp${produk['harga_jual']}",
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w400,
-                                            fontSize: 12,
-                                            color: Color(0xFF364153),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Text(
-                                    produk['stok'].toString(),
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                      color: Colors.lightBlue[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                            );
+                          },
+                        ),
               ),
             ],
           ),
@@ -253,7 +249,10 @@ class _CashierScreenState extends State<CashierScreen> {
             MaterialPageRoute(
               builder: (context) => CartScreen(keranjang: keranjang),
             ),
-          );
+          ).then((_) {
+            _loadProduk();
+            keranjang.clear();
+          });
         },
         child: Icon(Icons.shopping_cart, color: Colors.white),
       ),

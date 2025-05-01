@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dashboard_trial/cashier/success_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,10 +16,74 @@ class PaymentScreen extends StatefulWidget {
 class _PaymentScreenState extends State<PaymentScreen> {
   TextEditingController _uangDiterimaController = TextEditingController();
 
-  void _terimaPembayaran() {
+  void _terimaPembayaran() async {
     int uangDiterima = int.tryParse(_uangDiterimaController.text) ?? 0;
-    if (uangDiterima >= widget.totalHarga) {
-      Navigator.push(
+    if (uangDiterima < widget.totalHarga) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Uang yang diterima kurang')));
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // 1. Update stok
+      for (var item in widget.keranjang) {
+        var docRef = FirebaseFirestore.instance
+            .collection('produk')
+            .doc(item['id']);
+        var snapshot = await docRef.get();
+        if (snapshot.exists) {
+          final currentStok = (snapshot.data()?['stok'] ?? 0).toInt();
+          int newStok = currentStok - item['jumlah'];
+          int fixedStok = newStok < 0 ? 0 : newStok;
+          await docRef.update({'stok': fixedStok});
+        }
+      }
+
+      // 2. Ambil nomor urut penjualan
+      var kodeRef = FirebaseFirestore.instance
+          .collection('metadata')
+          .doc('penjualan');
+      var kodeSnapshot = await kodeRef.get();
+      int lastKode =
+          (kodeSnapshot.exists ? (kodeSnapshot.data()?['lastKode'] ?? 0) : 0)
+              .toInt();
+      int nextKode = lastKode + 1;
+      String formattedKode = nextKode.toString().padLeft(4, '0');
+
+      // 3. Hitung total profit
+      int totalProfit = 0;
+
+      for (var item in widget.keranjang) {
+        int beli = (item['harga_beli'] ?? 0).toInt();
+        int jual = (item['harga_jual'] ?? 0).toInt();
+        int jumlah = (item['jumlah'] ?? 0).toInt();
+
+        int profitPerItem = (jual - beli) * jumlah;
+        totalProfit += profitPerItem;
+      }
+
+      // 4. Simpan transaksi
+      await FirebaseFirestore.instance.collection('transaksi').add({
+        'kode': formattedKode,
+        'tanggal': DateTime.now(),
+        'nominal': widget.totalHarga,
+        'profit': totalProfit,
+        'produk': widget.keranjang,
+      });
+
+      // 5. Simpan kode terakhir
+      await kodeRef.set({'lastKode': nextKode});
+
+      // 6. Navigasi ke Success Screen
+      Navigator.pop(context);
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder:
@@ -29,9 +94,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
         ),
       );
-    } else {
+    } catch (e) {
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Uang diterima kurang dari total tagihan')),
+        SnackBar(content: Text('Terjadi kesalahan saat menyimpan transaksi')),
       );
     }
   }

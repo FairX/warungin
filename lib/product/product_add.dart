@@ -128,8 +128,8 @@ class _TambahProdukScreenState extends State<TambahProdukScreen> {
            );
         }
 
-        if(mounted) Navigator.pop(context); // Pop only after all operations attempt
-
+        if(mounted) Navigator.pop(context, produk); // Pop only after all operations attempt
+        
       } catch (e) {
         print('Error saving product: $e');
         if(mounted) {
