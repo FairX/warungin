@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 class CartScreen extends StatefulWidget {
   final List<Map<String, dynamic>> keranjang;
 
-  const CartScreen({super.key, required this.keranjang});
+  CartScreen({required this.keranjang});
 
   @override
   _CartScreenState createState() => _CartScreenState();
@@ -16,7 +16,7 @@ class _CartScreenState extends State<CartScreen> {
   int _hitungTotalItem() {
     return widget.keranjang.fold<int>(
       0,
-      (sum, item) => sum + (item['jumlah'] as int? ?? 0),
+      (sum, item) => sum + (item['jumlah'] as int),
     );
   }
 
@@ -24,7 +24,7 @@ class _CartScreenState extends State<CartScreen> {
     return widget.keranjang.fold<int>(
       0,
       (sum, item) =>
-          sum + ((item['harga_jual'] as int? ?? 0) * (item['jumlah'] as int? ?? 0)),
+          sum + ((item['harga_jual'] as int) * (item['jumlah'] as int)),
     );
   }
 
@@ -36,26 +36,19 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _bayar() {
-    // --- Create a COPY of the list before passing ---
-    final List<Map<String, dynamic>> keranjangCopy = List.from(widget.keranjang);
-
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PaymentScreen(
-          // --- Pass the COPY ---
-          keranjang: keranjangCopy,
-          totalHarga: _hitungTotalHarga(),
-        ),
+        builder:
+            (context) => PaymentScreen(
+              keranjang: widget.keranjang,
+              totalHarga: _hitungTotalHarga(),
+            ),
       ),
     ).then((_) {
-      // This runs AFTER PaymentScreen/SuccessScreen eventually pop back here.
-      // Clear the keranjang in *this* screen's state.
-      if (mounted) {
-        setState(() {
-          widget.keranjang.clear(); // Clear this screen's list
-        });
-      }
+      setState(() {
+        widget.keranjang.clear();
+      });
     });
   }
 
