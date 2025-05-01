@@ -7,44 +7,78 @@ class PaymentScreen extends StatefulWidget {
   final int totalHarga;
   final List<Map<String, dynamic>> keranjang;
 
-  PaymentScreen({required this.totalHarga, required this.keranjang});
+  const PaymentScreen({
+    super.key,
+    required this.totalHarga,
+    required this.keranjang,
+  });
 
   @override
   _PaymentScreenState createState() => _PaymentScreenState();
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  TextEditingController _uangDiterimaController = TextEditingController();
+  final TextEditingController _uangDiterimaController = TextEditingController();
+
+  @override
+  void dispose() {
+    _uangDiterimaController.dispose(); // Dispose controller
+    super.dispose();
+  }
 
   void _terimaPembayaran() async {
-    int uangDiterima = int.tryParse(_uangDiterimaController.text) ?? 0;
+    final int uangDiterima =
+        int.tryParse(
+          _uangDiterimaController.text.replaceAll('.', '').replaceAll(',', ''),
+        ) ??
+        0;
     if (uangDiterima < widget.totalHarga) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Uang yang diterima kurang')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uang yang diterima kurang')),
+      );
       return;
     }
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Center(child: CircularProgressIndicator()),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final List<Map<String, dynamic>> finalKeranjangData = List.from(
+      widget.keranjang,
     );
 
     try {
-      // 1. Update stok
-      for (var item in widget.keranjang) {
-        var docRef = FirebaseFirestore.instance
-            .collection('produk')
-            .doc(item['id']);
-        var snapshot = await docRef.get();
-        if (snapshot.exists) {
-          final currentStok = (snapshot.data()?['stok'] ?? 0).toInt();
-          int newStok = currentStok - item['jumlah'];
-          int fixedStok = newStok < 0 ? 0 : newStok;
-          await docRef.update({'stok': fixedStok});
+      // 1. Update stok in Firestore
+      WriteBatch batch =
+          FirebaseFirestore.instance.batch(); // Use batch for atomic writes
+      for (var item in finalKeranjangData) {
+        final String? docId = item['id'] as String?;
+        final int jumlahDibeli = item['jumlah'] as int? ?? 0;
+        if (docId != null && jumlahDibeli > 0) {
+          var docRef = FirebaseFirestore.instance
+              .collection('produk')
+              .doc(docId);
+          // Note: Reading inside a loop isn't ideal for performance, but okay for moderate carts.
+          // Consider fetching all product stocks beforehand if performance is critical.
+          DocumentSnapshot snapshot =
+              await docRef
+                  .get(); // Consider error handling if doc doesn't exist
+          if (snapshot.exists) {
+            final currentStok =
+                (snapshot.data() as Map<String, dynamic>?)?['stok'] as int? ??
+                0;
+            int newStok = currentStok - jumlahDibeli;
+            batch.update(docRef, {'stok': newStok < 0 ? 0 : newStok});
+          } else {
+            print(
+              "Warning: Product document ${docId} not found during stock update.",
+            );
+          }
         }
       }
+      await batch.commit();
 
       // 2. Ambil nomor urut penjualan
       var kodeRef = FirebaseFirestore.instance
@@ -76,16 +110,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
       // 4. Simpan transaksi
       await FirebaseFirestore.instance.collection('transaksi').add({
         'kode': formattedKode,
-        'tanggal': DateTime.now(),
+        'tanggal': Timestamp.now(),
         'nominal': widget.totalHarga,
         'profit': totalProfit,
-        'produk': widget.keranjang,
+        'produk': finalKeranjangData,
       });
 
       // 5. Simpan kode terakhir
       await kodeRef.set({'lastKode': nextKode});
 
       // 6. Navigasi ke Success Screen
+      if (!mounted) return; // Check before navigation
       Navigator.pop(context);
 
       print("Data keranjang yg diteruskan: ${widget.keranjang}");
@@ -95,16 +130,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
         MaterialPageRoute(
           builder:
               (context) => SuccessScreen(
-                keranjang: widget.keranjang,
+                keranjang: finalKeranjangData,
                 totalHarga: widget.totalHarga,
                 uangDiterima: uangDiterima,
               ),
         ),
       );
-    } catch (e) {
-      Navigator.pop(context);
+    } catch (e, s) {
+      // Catch error and stack trace
+      print("Error processing payment: $e\n$s"); // Log error and stack trace
+      if (!mounted) return; // Check before context use
+      Navigator.pop(context); // Ensure dialog is popped on error
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Terjadi kesalahan saat menyimpan transaksi')),
+        SnackBar(content: Text('Terjadi kesalahan: $e')), // Show error detail
       );
     }
   }
@@ -117,7 +155,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Color(0xFF1E2939)),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E2939)),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -130,14 +168,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       ),
       body: Padding(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             Container(
               width: double.infinity,
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Color(0xFFF3F4F6),
+                color: const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -150,7 +188,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       color: Color(0xFF364153),
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'Rp${widget.totalHarga}',
                     style: GoogleFonts.poppins(
@@ -162,7 +200,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 40),
+            const SizedBox(height: 40),
             Text(
               'Uang yang diterima',
               style: GoogleFonts.poppins(
@@ -171,11 +209,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 color: Color(0xFF364153),
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Container(
               padding: EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                border: Border.all(color: Color(0xFFD1D5DC)),
+                border: Border.all(color: const Color(0xFFD1D5DC)),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: TextField(
@@ -187,7 +225,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ),
               ),
             ),
-            Spacer(),
+            const Spacer(),
             ElevatedButton(
               onPressed: _terimaPembayaran,
               style: ElevatedButton.styleFrom(
