@@ -1,6 +1,4 @@
 import 'package:dashboard_trial/service/product_service.dart';
-import 'package:dashboard_trial/service/transaction_service.dart'; 
-import 'package:dashboard_trial/features/laporan/models/transaction.dart' as laporan;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -9,7 +7,7 @@ class TambahProdukScreen extends StatefulWidget {
   final int? index;
   final Function(int, Map<String, dynamic>)? onSave;
 
-  const TambahProdukScreen({super.key, this.produk, this.index, this.onSave});
+  TambahProdukScreen({this.produk, this.index, this.onSave});
 
   @override
   _TambahProdukScreenState createState() => _TambahProdukScreenState();
@@ -24,7 +22,6 @@ class _TambahProdukScreenState extends State<TambahProdukScreen> {
   final _stokController = TextEditingController();
   final _minimumStokController = TextEditingController();
   final ProductService _productService = ProductService();
-  final TransactionService _transactionService = TransactionService();
 
   bool isEdit = false;
   String? documentId;
@@ -58,89 +55,36 @@ class _TambahProdukScreenState extends State<TambahProdukScreen> {
 
   void _simpanProduk() async {
     if (_formKey.currentState!.validate()) {
-      final String namaProduk = _namaProdukController.text;
-      final int? hargaBeliInt = int.tryParse(_hargaBeliController.text);
-      final int? hargaJualInt = int.tryParse(_hargaJualController.text);
-      final int? stokInt = int.tryParse(_stokController.text);
-      final int? minimumStokInt = int.tryParse(_minimumStokController.text);
-
-      if (hargaBeliInt == null || hargaJualInt == null || stokInt == null || minimumStokInt == null) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text('Pastikan semua harga dan stok adalah angka valid.')),
-         );
-         return;
-      }
-      final double hargaBeliPerItemDouble = hargaBeliInt.toDouble();
-
-      final produkData = {
+      final produk = {
         'kode': _kodeProdukController.text,
-        'nama': namaProduk,
-        'harga_beli': hargaBeliInt,
-        'harga_jual': hargaJualInt,
-        'stok': stokInt,
-        'minimum_stok': minimumStokInt,
+        'nama': _namaProdukController.text,
+        'harga_beli': int.parse(_hargaBeliController.text),
+        'harga_jual': int.parse(_hargaJualController.text),
+        'stok': int.parse(_stokController.text),
+        'minimum_stok': int.parse(_minimumStokController.text),
       };
 
-      final int quantityPurchased = stokInt;
-
       try {
+        print("TEST");
         if (isEdit && documentId != null) {
-          await _productService.updateProduct(documentId!, produkData);
+          await _productService.updateProduct(documentId!, produk);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Produk berhasil diperbarui!')),
+          );
         } else {
-          await _productService.addProduct(produkData);
+          await _productService.addProduct(produk);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Produk berhasil ditambahkan!')),
+          );
         }
-
-        if (hargaBeliPerItemDouble > 0 && quantityPurchased > 0) {
-           // --- CALCULATE TOTAL EXPENSE ---
-           final double totalExpenseAmount = hargaBeliPerItemDouble * quantityPurchased;
-
-           // --- CREATE MORE INFORMATIVE DESCRIPTION ---
-           final String expenseDescription = isEdit
-               ? 'Update Stok: $namaProduk ($quantityPurchased item)' // Adjust description if needed for edits
-               : 'Pembelian Stok: $namaProduk ($quantityPurchased item)';
-
-           final expenseTransaction = laporan.Transaction(
-              id: DateTime.now().millisecondsSinceEpoch.toString() + '_prod',
-              type: laporan.TransactionType.expense,
-              amount: totalExpenseAmount,      // <<< Use the TOTAL calculated amount
-              date: DateTime.now(),
-              description: expenseDescription, // <<< Use the description with quantity
-              items: null, // No items needed for this expense type
-           );
-           try {
-              await _transactionService.addTransaction(expenseTransaction);
-              print('Expense transaction saved successfully!');
-              // Show combined success message
-               ScaffoldMessenger.of(context).showSnackBar(
-                 SnackBar(content: Text('Produk berhasil disimpan & laporan diperbarui!')),
-               );
-           } catch (e) {
-              print('Error saving expense transaction: $e');
-              // Show specific error for transaction failure
-              ScaffoldMessenger.of(context).showSnackBar(
-                 SnackBar(content: Text('Produk disimpan, tapi gagal update laporan: $e')),
-               );
-           }
-        } else {
-           // If no cost or quantity, just confirm product save
-           ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(content: Text(isEdit ? 'Produk berhasil diperbarui!' : 'Produk berhasil ditambahkan!')),
-           );
-        }
-
-        if(mounted) Navigator.pop(context, produk); // Pop only after all operations attempt
-        
+        Navigator.pop(context, produk);
       } catch (e) {
-        print('Error saving product: $e');
-        if(mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Gagal menyimpan produk: $e')));
-        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal menyimpan produk')));
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
