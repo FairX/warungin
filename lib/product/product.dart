@@ -28,17 +28,25 @@ class _ProdukScreenState extends State<ProdukScreen> {
     super.dispose();
   }
 
-  // Mengambil produk dari Firestore
+  bool _isLoading = true;
+
   Future<void> _getProdukFromFirestore() async {
+    setState(() {
+      _isLoading = true;
+    });
     try {
       List<Map<String, dynamic>> produk =
           await _productService.getAllProducts();
       setState(() {
         _produkList = produk;
         _filteredProdukList = produk;
+        _isLoading = false;
       });
     } catch (e) {
-      print('Error fetching products: $e');
+      print('Error mengambil data produk: $e');
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -54,10 +62,10 @@ class _ProdukScreenState extends State<ProdukScreen> {
 
   void _tambahProduk(Map<String, dynamic> produk) async {
     try {
-      await _productService.addProduct(produk);
-      _getProdukFromFirestore();
+      //await _productService.addProduct(produk);
+      await _getProdukFromFirestore();
     } catch (e) {
-      print('Error adding product: $e');
+      print('Error menambahkan produk: $e');
     }
   }
 
@@ -123,7 +131,9 @@ class _ProdukScreenState extends State<ProdukScreen> {
                             onSave: _editProduk,
                           ),
                     ),
-                  );
+                  ).then((_) {
+                    _getProdukFromFirestore();
+                  });
                 },
               ),
               ListTile(
@@ -313,7 +323,9 @@ class _ProdukScreenState extends State<ProdukScreen> {
                     ],
                   ),
                   child:
-                      _filteredProdukList.isEmpty
+                      _isLoading
+                          ? Center(child: CircularProgressIndicator())
+                          : _filteredProdukList.isEmpty
                           ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -431,8 +443,8 @@ class _ProdukScreenState extends State<ProdukScreen> {
             context,
             MaterialPageRoute(builder: (context) => TambahProdukScreen()),
           ).then((value) {
-            if (value != null) {
-              _tambahProduk(value as Map<String, dynamic>);
+            if (value != null && value is Map<String, dynamic>) {
+              _tambahProduk(value);
             }
           });
         },

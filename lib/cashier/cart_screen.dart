@@ -28,28 +28,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  void _batal() async {
-    for (var item in widget.keranjang) {
-      // Cari produk berdasarkan kode untuk tiap item
-      var produkQuery =
-          await FirebaseFirestore.instance
-              .collection('produk')
-              .where('kode', isEqualTo: item['kode']) // per item!
-              .limit(1)
-              .get();
-
-      if (produkQuery.docs.isNotEmpty) {
-        var doc = produkQuery.docs.first;
-        var currentStok = doc['stok'] ?? 0;
-
-        // Update stoknya per item
-        await FirebaseFirestore.instance
-            .collection('produk')
-            .doc(doc.id)
-            .update({'stok': currentStok + item['jumlah']});
-      }
-    }
-
+  void _batal() {
     setState(() {
       widget.keranjang.clear();
     });
@@ -66,7 +45,7 @@ class _CartScreenState extends State<CartScreen> {
               totalHarga: _hitungTotalHarga(),
             ),
       ),
-    ).then((value) {
+    ).then((_) {
       setState(() {
         widget.keranjang.clear();
       });

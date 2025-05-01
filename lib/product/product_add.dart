@@ -77,7 +77,7 @@ class _TambahProdukScreenState extends State<TambahProdukScreen> {
             SnackBar(content: Text('Produk berhasil ditambahkan!')),
           );
         }
-        Navigator.pop(context);
+        Navigator.pop(context, produk);
       } catch (e) {
         ScaffoldMessenger.of(
           context,
